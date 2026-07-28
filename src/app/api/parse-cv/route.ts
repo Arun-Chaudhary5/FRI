@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import { rateLimit } from "@/lib/rate-limit";
 
+export const runtime = "nodejs";
+
 export async function POST(req: NextRequest) {
   try {
     const ip = req.headers.get("x-forwarded-for") || "unknown";
@@ -34,7 +36,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (!process.env.GROQ_API_KEY) {
-      return NextResponse.json({ error: "GROQ_API_KEY not configured" }, { status: 500 });
+      console.warn("[Configuration] GROQ_API_KEY is missing");
+      return NextResponse.json({ error: "CV analysis is temporarily unavailable." }, { status: 500 });
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -49,14 +52,13 @@ export async function POST(req: NextRequest) {
     // 1. PDF Extraction Layer
     let extractedText = "";
     try {
-      const { PDFParse } = await import("pdf-parse");
-      const parser = new PDFParse({ data: buffer });
-      const data = await parser.getText();
+      const pdf = (await import("pdf-parse")).default || (await import("pdf-parse"));
+      const data = await pdf(buffer);
       extractedText = data.text;
     } catch (e: unknown) {
       const err = e as Error;
-      console.error("PDF Parse Error Stack:", err.stack);
-      return NextResponse.json({ error: "PDF Parse Error: " + (err.message || err.toString()) }, { status: 400 });
+      console.error("[PDF Parse Error]", err.stack);
+      return NextResponse.json({ error: "Unable to process this PDF. Please try another file." }, { status: 400 });
     }
 
     if (!extractedText || extractedText.trim().length < 50) {
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, profile: parsedData });
 
   } catch (error: unknown) {
-    console.error("Error parsing CV:", error);
-    return NextResponse.json({ error: "CV analysis failed. Please try again." }, { status: 500 });
+    console.error("[CV Parsing] Fatal error:", error);
+    return NextResponse.json({ error: "CV analysis is temporarily unavailable." }, { status: 500 });
   }
 }

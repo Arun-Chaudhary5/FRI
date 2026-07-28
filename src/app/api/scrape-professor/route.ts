@@ -76,8 +76,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (!process.env.GROQ_API_KEY) {
-      console.error("[Professor Scrape] GROQ_API_KEY not configured");
-      return NextResponse.json({ error: "GROQ_API_KEY not configured" }, { status: 500 });
+      console.warn("[Configuration] GROQ_API_KEY is missing");
+      return NextResponse.json({ error: "Professor import is temporarily unavailable." }, { status: 500 });
     }
 
     // 1. Scrape raw text using Cheerio with a timeout and fallback
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, professor, professorId: professor.id });
 
   } catch (error: any) {
-    console.error("[Professor Scrape] Failed:", error);
-    return NextResponse.json({ error: "Scraping analysis failed. Please try again." }, { status: 500 });
+    console.error("[Professor Scrape] Fatal error:", error);
+    return NextResponse.json({ error: "Professor import is temporarily unavailable." }, { status: 500 });
   }
 }

@@ -307,6 +307,6 @@ export async function POST(req: NextRequest) {
         console.error("[AUTO-DISCOVER] STACK:", error.stack);
     }
 
-    return NextResponse.json({ error: "Professor discovery failed. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: "Professor discovery is temporarily unavailable." }, { status: 500 });
   }
 }

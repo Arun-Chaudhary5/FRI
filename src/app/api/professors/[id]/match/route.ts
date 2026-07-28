@@ -22,7 +22,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const sessionEmail = session.user.email;
 
     if (!process.env.GROQ_API_KEY) {
-      return NextResponse.json({ error: "GROQ_API_KEY not configured" }, { status: 500 });
+      console.warn("[Configuration] GROQ_API_KEY is missing");
+      return NextResponse.json({ error: "Compatibility matching is temporarily unavailable." }, { status: 500 });
     }
 
     // 1. Fetch User (by Email, or fallback link)
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ success: true, match: parsedData, professor: updatedProfessor });
 
   } catch (error: unknown) {
-    console.error("Match error:", error);
-    return NextResponse.json({ error: "Match generation failed. Please try again." }, { status: 500 });
+    console.error("[Match] Fatal error:", error);
+    return NextResponse.json({ error: "Compatibility matching is temporarily unavailable." }, { status: 500 });
   }
 }

@@ -61,6 +61,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
     }
 
+    if (!process.env.SERPER_API_KEY) {
+      console.warn("[Configuration] SERPER_API_KEY is missing. Email discovery will have reduced accuracy.");
+    }
+    if (!process.env.HUNTER_API_KEY) {
+      console.warn("[Configuration] HUNTER_API_KEY is missing. Email discovery fallback disabled.");
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -246,7 +253,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error("Email discovery fatal error:", error.message);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("[Email Discovery] Fatal error:", error.message);
+    return NextResponse.json({ error: "Email discovery is temporarily unavailable." }, { status: 500 });
   }
 }
