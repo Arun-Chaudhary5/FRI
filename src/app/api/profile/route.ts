@@ -5,10 +5,23 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("[PROFILE] Request received");
     const data = await req.json();
+    
+    console.log("[PROFILE] Authentication check");
     const session = await getServerSession(authOptions);
-
+    console.log(`[PROFILE] Authenticated: ${!!session?.user}`);
+    
     let userEmail = session?.user?.email;
+    console.log(`[PROFILE] User ID (email) available: ${!!userEmail}`);
+
+    // Basic check for parsed structure
+    console.log(`[PROFILE] Request validation passed`);
+    console.log(`[PROFILE] parsed profile exists: ${!!data.profile}`);
+    console.log(`[PROFILE] name present: ${!!data.profile?.name}`);
+    console.log(`[PROFILE] education present: ${!!data.profile?.university}`);
+    console.log(`[PROFILE] skills type: ${typeof data.parsedCV?.skills}`);
+    console.log(`[PROFILE] research interests type: ${typeof data.parsedCV?.researchInterests}`);
 
     // We will stringify the JSON arrays for the SQLite schema
     const parsedDataStr = {
@@ -27,20 +40,21 @@ export async function POST(req: NextRequest) {
     };
 
     const userData = {
-      name: data.profile.name,
-      university: data.profile.university,
-      degree: data.profile.degree,
-      department: data.profile.department,
-      expectedGraduation: data.profile.expectedGraduation,
-      linkedin: data.profile.linkedin,
-      preferredResearchAreas: data.preferences.preferredResearchAreas,
-      targetCountries: data.preferences.targetCountries,
-      internshipDuration: data.preferences.internshipDuration,
+      name: data.profile?.name || null,
+      university: data.profile?.university || null,
+      degree: data.profile?.degree || null,
+      department: data.profile?.department || null,
+      expectedGraduation: data.profile?.expectedGraduation || null,
+      linkedin: data.profile?.linkedin || null,
+      preferredResearchAreas: data.preferences?.preferredResearchAreas || null,
+      targetCountries: data.preferences?.targetCountries || null,
+      internshipDuration: data.preferences?.internshipDuration || null,
       ...parsedDataStr
     };
 
     let user;
 
+    console.log("[PROFILE] Database operation starting");
     if (userEmail) {
       // Upsert by email if we have one
       user = await prisma.user.upsert({
@@ -57,10 +71,20 @@ export async function POST(req: NextRequest) {
         data: userData
       });
     }
+    console.log("[PROFILE] Database operation completed");
 
     return NextResponse.json({ success: true, user });
-  } catch (error) {
-    console.error("Failed to save profile:", error);
-    return NextResponse.json({ error: "Failed to save profile" }, { status: 500 });
+  } catch (error: any) {
+    console.error("[PROFILE] Save failed");
+    if (error instanceof Error) {
+      console.error("[PROFILE] Error name:", error.name);
+      console.error("[PROFILE] Error message:", error.message);
+      if ((error as any).code) {
+         console.error("[PROFILE] Prisma Error code:", (error as any).code);
+      }
+    } else {
+      console.error("[PROFILE] Unknown error type:", error);
+    }
+    return NextResponse.json({ error: "Failed to save profile." }, { status: 500 });
   }
 }
