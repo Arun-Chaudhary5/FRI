@@ -39,17 +39,28 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
     let userEmail = session?.user?.email;
 
-    console.log("===== PROFILE DEBUG =====");
+    console.log("===== PROFILE AUTH DEBUG =====");
     console.log("Session:", session);
-    console.log("Session User:", session?.user);
-    console.log("Session User ID:", session?.user?.id);
-    console.log("Session Email:", session?.user?.email);
-    console.log("Headers:", req.headers);
-    console.log("Cookies:", req.cookies.getAll());
+    console.log("User:", session?.user);
+    console.log("User ID:", session?.user?.id);
+    console.log("Email:", session?.user?.email);
+    console.log("Cookies via req:", req.cookies.getAll());
+    console.log("Headers via req:", Object.fromEntries(req.headers.entries()));
+    console.log("Authorization decision reached.");
+    
+    // Auth configuration debugging
+    console.log("===== AUTH CONFIG DEBUG =====");
+    console.log("authOptions defined:", !!authOptions);
+    console.log("providers count:", authOptions?.providers?.length);
+    console.log("NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
+    console.log("VERCEL_URL:", process.env.VERCEL_URL);
 
     if (!userEmail) {
+      console.log("Condition !userEmail evaluated to TRUE.");
+      console.log("Returning 401 Unauthorized.");
       return NextResponse.json({ error: "Unauthorized. Please log in to save your profile." }, { status: 401 });
     }
+    console.log("Condition !userEmail evaluated to FALSE. Proceeding...");
 
     const rawData = await req.json();
     const parsed = ProfileSchema.safeParse(rawData);

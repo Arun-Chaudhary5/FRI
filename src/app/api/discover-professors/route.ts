@@ -16,9 +16,20 @@ export async function POST(req: NextRequest) {
     // STEP 1: Resolving current user
     const session = await getServerSession(authOptions);
 
+    console.log("===== DISCOVER-PROFESSORS AUTH DEBUG =====");
+    console.log("Session:", session);
+    console.log("User:", session?.user);
+    console.log("User ID:", session?.user?.id);
+    console.log("Email:", session?.user?.email);
+    console.log("Cookies via req:", req.cookies.getAll());
+    console.log("Headers via req:", Object.fromEntries(req.headers.entries()));
+    console.log("authOptions defined:", !!authOptions);
+
     if (!session?.user?.id) {
+      console.log("Condition !session?.user?.id evaluated to TRUE.");
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
     }
+    console.log("Condition !session?.user?.id evaluated to FALSE.");
     const sessionUserId = session.user.id;
 
     // STEP 2: Loading profile
