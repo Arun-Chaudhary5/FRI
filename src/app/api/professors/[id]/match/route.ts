@@ -16,10 +16,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { id: professorId } = await params;
 
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
     }
-    const sessionUserId = session.user.id;
+    
+    const dbUser = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    });
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 });
+    }
+    const sessionUserId = dbUser.id;
 
     if (!process.env.GROQ_API_KEY) {
       console.warn("[Configuration] GROQ_API_KEY is missing");

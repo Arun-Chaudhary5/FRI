@@ -8,20 +8,26 @@ export async function GET(req: Request) {
     const session = await getServerSession(authOptions);
 
     console.log("===== PROFESSORS AUTH DEBUG =====");
-    console.log("Session:", session);
-    console.log("User:", session?.user);
-    console.log("User ID:", session?.user?.id);
-    console.log("Email:", session?.user?.email);
-    console.log("authOptions defined:", !!authOptions);
+    console.log("Session exists:", !!session);
+    console.log("session.user:", session?.user);
+    console.log("session.user.id:", session?.user?.id);
+    console.log("session.user.email:", session?.user?.email);
 
-    if (!session?.user?.id) {
-      console.log("Condition !session?.user?.id evaluated to TRUE.");
+    if (!session?.user?.email) {
+      console.log("Condition !session?.user?.email evaluated to TRUE. Returning 401.");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    console.log("Condition !session?.user?.id evaluated to FALSE.");
+
+    const dbUser = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 });
+    }
 
     const professors = await prisma.professor.findMany({
-      where: { userId: session.user.id },
+      where: { userId: dbUser.id },
       orderBy: { updatedAt: "desc" },
     });
     

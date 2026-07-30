@@ -23,10 +23,17 @@ export async function POST(req: NextRequest) {
     }
 
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const sessionUserId = session.user.id;
+    
+    const dbUser = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    });
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 });
+    }
+    const sessionUserId = dbUser.id;
 
     const body = await req.json();
     const parsedBody = ScrapeProfessorSchema.safeParse(body);

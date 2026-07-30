@@ -17,29 +17,26 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
 
     console.log("===== DISCOVER-PROFESSORS AUTH DEBUG =====");
-    console.log("Session:", session);
-    console.log("User:", session?.user);
-    console.log("User ID:", session?.user?.id);
-    console.log("Email:", session?.user?.email);
-    console.log("Cookies via req:", req.cookies.getAll());
-    console.log("Headers via req:", Object.fromEntries(req.headers.entries()));
-    console.log("authOptions defined:", !!authOptions);
+    console.log("Session exists:", !!session);
+    console.log("session.user:", session?.user);
+    console.log("session.user.id:", session?.user?.id);
+    console.log("session.user.email:", session?.user?.email);
 
-    if (!session?.user?.id) {
-      console.log("Condition !session?.user?.id evaluated to TRUE.");
+    if (!session?.user?.email) {
+      console.log("Condition !session?.user?.email evaluated to TRUE. Returning 401.");
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
     }
-    console.log("Condition !session?.user?.id evaluated to FALSE.");
-    const sessionUserId = session.user.id;
-
-    // STEP 2: Loading profile
+    
+    // STEP 2: Loading profile via Email (Standardized Auth)
     let user = await prisma.user.findUnique({
-      where: { id: sessionUserId }
+      where: { email: session.user.email }
     });
 
     if (!user) {
       return NextResponse.json({ error: "User not found. Please complete onboarding first." }, { status: 400 });
     }
+    
+    const sessionUserId = user.id;
 
     // STEP 3: Loading CV/preferences
     const hasCvData = !!user.skills || !!user.researchExperience || !!user.workExperience;
