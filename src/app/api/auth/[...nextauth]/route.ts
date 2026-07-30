@@ -56,28 +56,34 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
-    async jwt({ token, account }) {
+    async signIn({ user }) {
+      if (!user.email) return false;
+      try {
+        const dbUser = await prisma.user.upsert({
+          where: { email: user.email },
+          update: {}, // keep existing user data
+          create: {
+            email: user.email,
+            name: user.name || "Unknown",
+          }
+        });
+        // Mutate the user object so the JWT callback has the DB ID
+        user.id = dbUser.id;
+        return true;
+      } catch (err) {
+        console.error("Failed to upsert user in signIn callback:", err);
+        return false; // Block sign-in if DB is unreachable
+      }
+    },
+    async jwt({ token, account, user }) {
       // Initial sign in
-      if (account) {
+      if (account && user) {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
         token.accessTokenExpires = account.expires_at ? account.expires_at * 1000 : Date.now() + 3600 * 1000;
+        token.id = user.id; // DB ID injected from signIn callback
       }
       
-      // Inject database user ID if available (only need to look up if missing)
-      if (token.email && !token.id) {
-        try {
-          const dbUser = await prisma.user.findUnique({
-            where: { email: token.email }
-          });
-          if (dbUser) {
-            token.id = dbUser.id;
-          }
-        } catch (err) {
-          console.error("Failed to fetch user ID in JWT callback:", err);
-        }
-      }
-
       // Return previous token if the access token has not expired yet
       if (token.accessTokenExpires && Date.now() < (token.accessTokenExpires as number)) {
         return token;

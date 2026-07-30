@@ -163,18 +163,10 @@ export async function POST(req: NextRequest) {
     try {
       parsedData = JSON.parse(text.trim());
     } catch (e) {
-      console.error("[Professor Scrape] Failed to parse Groq response:", text);
+      console.error("[Professor Scrape] Failed to parse Groq response");
     }
-    
-    console.log("[Professor Scrape] AI analysis complete");
-    console.log("[Professor Scrape] Identity extracted:", { 
-      name: parsedData.name, 
-      university: parsedData.university, 
-      email: parsedData.email 
-    });
 
-    // 3. Save to Database
-    console.log("[Professor Scrape] Saving to database");
+
     const finalName = parsedData.name && parsedData.name !== "Unknown" ? parsedData.name : (name || "Unknown Professor");
     const finalUniversity = parsedData.university && parsedData.university !== "Unknown" ? parsedData.university : (university || "Unknown University");
 
@@ -195,7 +187,6 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    console.log("[Professor Scrape] Complete");
     return NextResponse.json({ success: true, professor, professorId: professor.id });
 
   } catch (error: any) {

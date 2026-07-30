@@ -56,8 +56,7 @@ export async function POST(req: NextRequest) {
       const data = await pdf(buffer);
       extractedText = data.text;
     } catch (e: unknown) {
-      const err = e as Error;
-      console.error("[PDF Parse Error]", err.stack);
+      console.error("[PDF Parse Error]: Failed to extract text from PDF.");
       return NextResponse.json({ error: "Unable to process this PDF. Please try another file." }, { status: 400 });
     }
 

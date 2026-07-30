@@ -13,13 +13,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
     }
 
-    console.log("[AUTO-DISCOVER] Request received");
-
     // STEP 1: Resolving current user
-    console.log("[AUTO-DISCOVER] STEP 1: Resolving current user");
     const session = await getServerSession(authOptions);
-    console.log(`[AUTO-DISCOVER] user found: ${!!session?.user}`);
-    console.log(`[AUTO-DISCOVER] user id present: ${!!session?.user?.id}`);
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
@@ -27,22 +22,17 @@ export async function POST(req: NextRequest) {
     const sessionUserId = session.user.id;
 
     // STEP 2: Loading profile
-    console.log("[AUTO-DISCOVER] STEP 2: Loading profile");
     let user = await prisma.user.findUnique({
       where: { id: sessionUserId }
     });
 
-    console.log(`[AUTO-DISCOVER] profile found: ${!!user}`);
     if (!user) {
       return NextResponse.json({ error: "User not found. Please complete onboarding first." }, { status: 400 });
     }
 
     // STEP 3: Loading CV/preferences
-    console.log("[AUTO-DISCOVER] STEP 3: Loading CV/preferences");
     const hasCvData = !!user.skills || !!user.researchExperience || !!user.workExperience;
     const hasInterests = !!user.researchInterests || !!user.preferredResearchAreas;
-    console.log(`[AUTO-DISCOVER] CV/profile data available: ${hasCvData}`);
-    console.log(`[AUTO-DISCOVER] research interests available: ${hasInterests}`);
 
     if (!process.env.SERPER_API_KEY) {
       throw new Error("SERPER_API_KEY not configured");
@@ -55,7 +45,7 @@ export async function POST(req: NextRequest) {
     const groqModel = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
     // STEP 4: Generating search query
-    console.log("[AUTO-DISCOVER] STEP 4: Generating search query");
+    // STEP 4: Generating search query
     const queryPrompt = `
       You are an expert academic recruiter. Given the student's profile, generate exactly 3 highly targeted Google search queries to find potential PhD/Research advisors (professors/labs).
       The queries should prioritize academic sources, using terms like "professor", "research lab", "faculty", or "principal investigator".
@@ -95,10 +85,8 @@ export async function POST(req: NextRequest) {
       const fallbackTopic = user.preferredResearchAreas ? JSON.parse(user.preferredResearchAreas).join(" ") : "Machine Learning";
       searchQueries = [`${fallbackTopic} professor research lab site:.edu`];
     }
-    console.log(`[AUTO-DISCOVER] query: ${searchQueries[0]}`);
 
     // STEP 5: Calling search provider
-    console.log("[AUTO-DISCOVER] STEP 5: Calling search provider");
     let allOrganicResults: any[] = [];
     
     for (const sq of searchQueries.slice(0, 3)) {
@@ -111,16 +99,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({ q: sq, num: 10 })
       });
       
-      console.log(`[AUTO-DISCOVER] provider: Serper (google.serper.dev)`);
-      console.log(`[AUTO-DISCOVER] HTTP status: ${serperRes.status}`);
-      console.log(`[AUTO-DISCOVER] statusText: ${serperRes.statusText}`);
-      
       if (!serperRes.ok) {
-        let safeBody = "Could not read body";
-        try {
-            safeBody = await serperRes.text();
-        } catch(e) {}
-        console.log(`[AUTO-DISCOVER] safe response body: ${safeBody}`);
         continue;
       }
 
@@ -128,13 +107,11 @@ export async function POST(req: NextRequest) {
       allOrganicResults.push(...(serperData.organic || []));
     }
 
-    console.log(`[AUTO-DISCOVER] results returned: ${allOrganicResults.length}`);
     if (allOrganicResults.length === 0) {
       return NextResponse.json({ error: "No search results found from provider." }, { status: 404 });
     }
 
     // STEP 6: Processing candidates
-    console.log("[AUTO-DISCOVER] STEP 6: Processing candidates");
     const uniqueLinks = new Map();
     for (const res of allOrganicResults) {
       if (res.link && !uniqueLinks.has(res.link)) {
@@ -142,11 +119,8 @@ export async function POST(req: NextRequest) {
       }
     }
     const candidateResults = Array.from(uniqueLinks.values()).slice(0, 20);
-    console.log(`[AUTO-DISCOVER] candidate count: ${candidateResults.length}`);
 
     // STEP 7: AI analysis
-    console.log("[AUTO-DISCOVER] STEP 7: AI analysis");
-    console.log(`[AUTO-DISCOVER] model: ${groqModel}`);
     const extractPrompt = `
       You are an expert at identifying academic faculty profiles.
       Analyze this list of Google search results and extract the real professors/faculty members.
@@ -235,19 +209,13 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    console.log(`[AUTO-DISCOVER] successful analyses: ${successfulAnalyses}`);
-    console.log(`[AUTO-DISCOVER] failed analyses: ${failedAnalyses}`);
-
     // Sort by score descending and take top 5
     scoredProfessors.sort((a, b) => b.compatibilityScore - a.compatibilityScore);
     const top5 = scoredProfessors.slice(0, 5);
 
     // STEP 8: Database
-    console.log("[AUTO-DISCOVER] STEP 8: Database");
     let savedCount = 0;
     const finalProfessors = [];
-    
-    console.log(`[AUTO-DISCOVER] professors attempted: ${top5.length}`);
     
     for (const prof of top5) {
       const existing = await prisma.professor.findFirst({
@@ -279,8 +247,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.log(`[AUTO-DISCOVER] professors saved: ${savedCount}`);
-    console.log("[AUTO-DISCOVER] COMPLETE");
     
     return NextResponse.json({ success: true, count: finalProfessors.length, professors: finalProfessors });
   } catch (error) {

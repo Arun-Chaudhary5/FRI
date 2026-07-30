@@ -3,6 +3,13 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
 import { google } from "googleapis";
 import { rateLimit } from "@/lib/rate-limit";
+import { z } from "zod";
+
+const SendEmailSchema = z.object({
+  to: z.string().email(),
+  subject: z.string().min(1),
+  body: z.string().min(1)
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,31 +19,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Too many drafts created. Please try again later." }, { status: 429 });
     }
 
-    console.log("[Gmail Draft] Request received");
     const session = await getServerSession(authOptions);
-    
-    console.log(`[Gmail Draft] Session found: ${!!session}`);
-    console.log(`[Gmail Draft] Google credentials found: ${!!(session as any)?.accessToken}`);
 
     if (!session || !(session as any).accessToken) {
       return NextResponse.json({ error: "Unauthorized. Please sign in with Google." }, { status: 401 });
     }
 
     if ((session as any).error === "RefreshAccessTokenError") {
-      console.log(`[Gmail Draft] Access token expired: true`);
-      console.log(`[Gmail Draft] Refresh attempted: false (revoked or failed)`);
       return NextResponse.json({ error: "Google session expired. Please sign in again." }, { status: 401 });
-    } else {
-      console.log(`[Gmail Draft] Access token active or refresh attempted: true`);
     }
 
-    const { to, subject, body } = await req.json();
+    const rawData = await req.json();
+    const parsed = SendEmailSchema.safeParse(rawData);
 
-    if (!to || !subject || !body) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid email data", details: parsed.error.issues }, { status: 400 });
     }
 
-    console.log(`[Gmail Draft] User resolved: true`);
+    const { to, subject, body } = parsed.data;
 
     const accessToken = (session as any).accessToken;
 
@@ -62,7 +62,6 @@ export async function POST(req: NextRequest) {
       .replace(/\//g, '_')
       .replace(/=+$/, '');
 
-    console.log(`[Gmail Draft] Draft creation started`);
     // Create Draft instead of sending directly
     const result = await gmail.users.drafts.create({
       userId: 'me',
@@ -73,7 +72,6 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    console.log(`[Gmail Draft] Draft creation successful!`);
     return NextResponse.json({ success: true, result: result.data });
   } catch (error: any) {
     console.error("Draft creation error:", error);

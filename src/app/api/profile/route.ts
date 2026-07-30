@@ -2,28 +2,55 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+
+const ProfileSchema = z.object({
+  profile: z.object({
+    name: z.string().optional(),
+    university: z.string().optional(),
+    degree: z.string().optional(),
+    department: z.string().optional(),
+    expectedGraduation: z.string().optional(),
+    linkedin: z.string().optional(),
+  }).optional(),
+  preferences: z.object({
+    preferredResearchAreas: z.string().optional(),
+    targetCountries: z.string().optional(),
+    internshipDuration: z.string().optional(),
+  }).optional(),
+  parsedCV: z.object({
+    skills: z.array(z.string()).optional(),
+    programmingLanguages: z.array(z.string()).optional(),
+    frameworks: z.array(z.string()).optional(),
+    researchExperience: z.array(z.string()).optional(),
+    projects: z.array(z.string()).optional(),
+    leadershipRoles: z.array(z.string()).optional(),
+    awards: z.array(z.string()).optional(),
+    workExperience: z.array(z.string()).optional(),
+    publications: z.array(z.string()).optional(),
+    researchInterests: z.array(z.string()).optional(),
+    technicalStack: z.array(z.string()).optional(),
+    domainExpertise: z.array(z.string()).optional(),
+  }).optional()
+});
 
 export async function POST(req: NextRequest) {
   try {
-    console.log("[PROFILE] Request received");
-    const data = await req.json();
+    const rawData = await req.json();
+    const parsed = ProfileSchema.safeParse(rawData);
     
-    console.log("[PROFILE] Authentication check");
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid profile data provided.", details: parsed.error.issues }, { status: 400 });
+    }
+    
+    const data = parsed.data;
+    
     const session = await getServerSession(authOptions);
-    console.log(`[PROFILE] Authenticated: ${!!session?.user}`);
-    
     let userEmail = session?.user?.email;
-    let userId = session?.user?.id;
-    console.log(`[PROFILE] User Email available: ${!!userEmail}`);
-    console.log(`[PROFILE] User ID available: ${!!userId}`);
 
-    // Basic check for parsed structure
-    console.log(`[PROFILE] Request validation passed`);
-    console.log(`[PROFILE] parsed profile exists: ${!!data.profile}`);
-    console.log(`[PROFILE] name present: ${!!data.profile?.name}`);
-    console.log(`[PROFILE] education present: ${!!data.profile?.university}`);
-    console.log(`[PROFILE] skills type: ${typeof data.parsedCV?.skills}`);
-    console.log(`[PROFILE] research interests type: ${typeof data.parsedCV?.researchInterests}`);
+    if (!userEmail) {
+      return NextResponse.json({ error: "Unauthorized. Please log in to save your profile." }, { status: 401 });
+    }
 
     // We will stringify the JSON arrays for the SQLite schema
     const parsedDataStr = {
@@ -54,39 +81,18 @@ export async function POST(req: NextRequest) {
       ...parsedDataStr
     };
 
-    let user;
-
-    console.log("[PROFILE] Database operation starting");
-    if (userEmail) {
-      // Upsert by email if we have one
-      user = await prisma.user.upsert({
-        where: { email: userEmail },
-        update: userData,
-        create: {
-          ...userData,
-          email: userEmail
-        }
-      });
-    } else {
-      // Fallback: create an unlinked user if no email is provided at all
-      user = await prisma.user.create({
-        data: userData
-      });
-    }
-    console.log("[PROFILE] Database operation completed");
+    const user = await prisma.user.upsert({
+      where: { email: userEmail },
+      update: userData,
+      create: {
+        ...userData,
+        email: userEmail
+      }
+    });
 
     return NextResponse.json({ success: true, user });
   } catch (error: any) {
-    console.error("[PROFILE] Save failed");
-    if (error instanceof Error) {
-      console.error("[PROFILE] Error name:", error.name);
-      console.error("[PROFILE] Error message:", error.message);
-      if ((error as any).code) {
-         console.error("[PROFILE] Prisma Error code:", (error as any).code);
-      }
-    } else {
-      console.error("[PROFILE] Unknown error type:", error);
-    }
+    console.error("[PROFILE] Save failed:", error.message);
     return NextResponse.json({ error: "Failed to save profile." }, { status: 500 });
   }
 }
