@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import * as cheerio from "cheerio";
 import Groq from "groq-sdk";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";

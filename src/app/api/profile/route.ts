@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -36,6 +36,21 @@ const ProfileSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    let userEmail = session?.user?.email;
+
+    console.log("===== PROFILE DEBUG =====");
+    console.log("Session:", session);
+    console.log("Session User:", session?.user);
+    console.log("Session User ID:", session?.user?.id);
+    console.log("Session Email:", session?.user?.email);
+    console.log("Headers:", req.headers);
+    console.log("Cookies:", req.cookies.getAll());
+
+    if (!userEmail) {
+      return NextResponse.json({ error: "Unauthorized. Please log in to save your profile." }, { status: 401 });
+    }
+
     const rawData = await req.json();
     const parsed = ProfileSchema.safeParse(rawData);
     
@@ -44,13 +59,6 @@ export async function POST(req: NextRequest) {
     }
     
     const data = parsed.data;
-    
-    const session = await getServerSession(authOptions);
-    let userEmail = session?.user?.email;
-
-    if (!userEmail) {
-      return NextResponse.json({ error: "Unauthorized. Please log in to save your profile." }, { status: 401 });
-    }
 
     // We will stringify the JSON arrays for the SQLite schema
     const parsedDataStr = {
