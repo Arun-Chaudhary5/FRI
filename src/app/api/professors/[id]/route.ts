@@ -6,16 +6,8 @@ import { authOptions } from "../../auth/[...nextauth]/route";
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const { id: professorId } = await params;
@@ -23,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const professor = await prisma.professor.findUnique({
       where: { 
         id: professorId,
-        userId: user.id
+        userId: session.user.id
       }
     });
     

@@ -1,5 +1,6 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import { prisma } from "@/lib/prisma";
 
 async function refreshAccessToken(token: any) {
   try {
@@ -61,11 +62,24 @@ export const authOptions: NextAuthOptions = {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
         token.accessTokenExpires = account.expires_at ? account.expires_at * 1000 : Date.now() + 3600 * 1000;
-        return token;
+      }
+      
+      // Inject database user ID if available (only need to look up if missing)
+      if (token.email && !token.id) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { email: token.email }
+          });
+          if (dbUser) {
+            token.id = dbUser.id;
+          }
+        } catch (err) {
+          console.error("Failed to fetch user ID in JWT callback:", err);
+        }
       }
 
       // Return previous token if the access token has not expired yet
-      if (Date.now() < (token.accessTokenExpires as number)) {
+      if (token.accessTokenExpires && Date.now() < (token.accessTokenExpires as number)) {
         return token;
       }
 
@@ -73,23 +87,15 @@ export const authOptions: NextAuthOptions = {
       return refreshAccessToken(token);
     },
     async session({ session, token }) {
+      if (token?.id) {
+        session.user.id = token.id as string;
+      }
       (session as any).accessToken = token.accessToken;
       (session as any).error = token.error;
       return session;
     }
   },
   secret: process.env.NEXTAUTH_SECRET || (process.env.NODE_ENV === "production" ? undefined : "default_secret_for_dev_mode_only"),
-  cookies: {
-    sessionToken: {
-      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-      }
-    }
-  }
 };
 
 const handler = NextAuth(authOptions);

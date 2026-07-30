@@ -23,17 +23,10 @@ export async function POST(req: NextRequest) {
     }
 
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    const sessionUserId = session.user.id;
 
     const body = await req.json();
     const parsedBody = ScrapeProfessorSchema.safeParse(body);
@@ -187,7 +180,7 @@ export async function POST(req: NextRequest) {
 
     const professor = await prisma.professor.create({
       data: {
-        userId: user.id,
+        userId: sessionUserId,
         name: finalName,
         university: finalUniversity,
         homepage: url,

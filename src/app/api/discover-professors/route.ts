@@ -19,31 +19,18 @@ export async function POST(req: NextRequest) {
     console.log("[AUTO-DISCOVER] STEP 1: Resolving current user");
     const session = await getServerSession(authOptions);
     console.log(`[AUTO-DISCOVER] user found: ${!!session?.user}`);
-    console.log(`[AUTO-DISCOVER] user id present: ${!!session?.user?.email}`);
+    console.log(`[AUTO-DISCOVER] user id present: ${!!session?.user?.id}`);
 
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
     }
-    const sessionEmail = session.user.email;
+    const sessionUserId = session.user.id;
 
     // STEP 2: Loading profile
     console.log("[AUTO-DISCOVER] STEP 2: Loading profile");
     let user = await prisma.user.findUnique({
-      where: { email: sessionEmail }
+      where: { id: sessionUserId }
     });
-
-    if (!user) {
-      const orphanedUser = await prisma.user.findFirst({
-        where: { email: null },
-        orderBy: { createdAt: 'desc' }
-      });
-      if (orphanedUser) {
-        user = await prisma.user.update({
-          where: { id: orphanedUser.id },
-          data: { email: sessionEmail }
-        });
-      }
-    }
 
     console.log(`[AUTO-DISCOVER] profile found: ${!!user}`);
     if (!user) {

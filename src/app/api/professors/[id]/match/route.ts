@@ -16,34 +16,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { id: professorId } = await params;
 
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
     }
-    const sessionEmail = session.user.email;
+    const sessionUserId = session.user.id;
 
     if (!process.env.GROQ_API_KEY) {
       console.warn("[Configuration] GROQ_API_KEY is missing");
       return NextResponse.json({ error: "Compatibility matching is temporarily unavailable." }, { status: 500 });
     }
 
-    // 1. Fetch User (by Email, or fallback link)
+    // 1. Fetch User
     let user = await prisma.user.findUnique({
-      where: { email: sessionEmail }
+      where: { id: sessionUserId }
     });
-
-    // If user not found by email, try to link an orphaned profile
-    if (!user) {
-      const orphanedUser = await prisma.user.findFirst({
-        where: { email: null },
-        orderBy: { createdAt: 'desc' }
-      });
-      if (orphanedUser) {
-        user = await prisma.user.update({
-          where: { id: orphanedUser.id },
-          data: { email: sessionEmail }
-        });
-      }
-    }
 
     if (!user) {
       return NextResponse.json({ error: "User profile not found. Please complete onboarding." }, { status: 400 });

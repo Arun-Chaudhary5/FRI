@@ -69,17 +69,10 @@ export async function POST(req: NextRequest) {
     }
 
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    const sessionUserId = session.user.id;
 
     const body = await req.json();
     const parsedBody = FindEmailSchema.safeParse(body);
@@ -90,7 +83,7 @@ export async function POST(req: NextRequest) {
     const { professorId } = parsedBody.data;
 
     const professor = await prisma.professor.findUnique({
-      where: { id: professorId, userId: user.id }
+      where: { id: professorId, userId: sessionUserId }
     });
 
     if (!professor || !professor.name) {

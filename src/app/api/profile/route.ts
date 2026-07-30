@@ -13,7 +13,9 @@ export async function POST(req: NextRequest) {
     console.log(`[PROFILE] Authenticated: ${!!session?.user}`);
     
     let userEmail = session?.user?.email;
-    console.log(`[PROFILE] User ID (email) available: ${!!userEmail}`);
+    let userId = session?.user?.id;
+    console.log(`[PROFILE] User Email available: ${!!userEmail}`);
+    console.log(`[PROFILE] User ID available: ${!!userId}`);
 
     // Basic check for parsed structure
     console.log(`[PROFILE] Request validation passed`);
